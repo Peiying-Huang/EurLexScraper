@@ -15,6 +15,7 @@ class DocumentInfoScraper:
         self.uri_identifier = self.url.split('/TXT/')[1]
         self.info_url =  f'{self.base_url}/ALL/{self.uri_identifier}'
         self.soup = None
+   
     
     def get_soup(self):
         """"
@@ -25,12 +26,20 @@ class DocumentInfoScraper:
         options = Options()# create an option instance 
         options.add_argument("--headless") # running in headless mode
         driver = webdriver.Chrome(options=options)#starts a new ChromeDriver instance.
-        driver.get(url)
-        time.sleep(5)  # wait for JS to load
+        
+        try:
+            driver.get(url)
+            time.sleep(5)
+            html = driver.page_source # gets the source of the current page
+            self.soup = BeautifulSoup(html,"html.parser")
 
-        html = driver.page_source # gets the source of the current page
-        driver.quit()
-        self.soup = BeautifulSoup(html,"html.parser")
+        except WebDriverException:
+            self.soup = None
+            return  # exit the function when this error is raised
+
+        finally:
+            driver.quit()
+
     
     def extract_keys(self):
         """
@@ -103,5 +112,29 @@ class DocumentInfoScraper:
             dict_meta[key] = value
         json_meta = json.dumps(dict_meta)
         return json_meta
+    
+    def get_document_num(self):
+        """
+        extract document number for making graphs
+        """
+        document_block = self.soup
+        if document_block is not  None:
+            document = document_block.find("p", class_ = "DocumentTitle pull-left")
+            document_number = document.get_text().split()[1]
+        return document_number
+
+    def extract_modified_table(self):
+        """
+        extract the "modified by" table and return all the html tags if the table exist.
+        Otherwise, return None.
+        """
+        self.get_soup()
+        modified_table = self.soup.find("tbody")
+        if modified_table:
+            return modified_table
+        else:
+            return None
+
+        
 
     
