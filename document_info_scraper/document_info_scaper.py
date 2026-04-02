@@ -26,12 +26,13 @@ class DocumentInfoScraper:
         options = Options()# create an option instance 
         options.add_argument("--headless") # running in headless mode
         driver = webdriver.Chrome(options=options)#starts a new ChromeDriver instance.
-        
+
         try:
             driver.get(url)
             time.sleep(5)
             html = driver.page_source # gets the source of the current page
             self.soup = BeautifulSoup(html,"html.parser")
+            return self.soup
 
         except WebDriverException:
             self.soup = None
@@ -39,6 +40,7 @@ class DocumentInfoScraper:
 
         finally:
             driver.quit()
+        
 
     
     def extract_keys(self):
@@ -123,18 +125,79 @@ class DocumentInfoScraper:
             document_number = document.get_text().split()[1]
         return document_number
 
-    def extract_modified_table(self):
+  
+    def extract_modifiedby_data(self):
         """
         extract the "modified by" table and return all the html tags if the table exist.
         Otherwise, return None.
         """
         self.get_soup()
-        modified_table = self.soup.find("tbody")
-        if modified_table:
-            return modified_table
-        else:
-            return None
+        
+        modifiedby_table = self.soup.find("dd", class_ ="data-table")# the only tag relates to the Modifiedby table
+        if not modifiedby_table:
+            attributes_list, links = [[],[]]
+            return attributes_list, links
+        
+        attributes_list = [] #[{Relation':'','Act':'','Comment':'','Subdivision concerned':'','From':'','To':''},....]
+        rows = modifiedby_table.find_all('tr', {'role': 'row'})
+        for row in rows[1:]:
+            attri_keys = ['Relation', 'Act', 'Comment', 'Subdivision concerned', 'From','To']
 
+            attri_values = [] #['Completed by', '32025R2180', '', '', '', '']
+            tds = row.find_all('td')
+            for td in tds:
+                td_text = td.get_text().strip()
+                attri_values.append(td_text)
+
+            attribute_dict = {}
+            for attri_key, attri_value in zip(attri_keys,attri_values):
+                attribute_dict[attri_key] = attri_value
+            attributes_list.append(attribute_dict)
+
+        links =[]
+        for a in modifiedby_table.find_all('a'):
+            uri_identifier = a.get("href", "").split('./../../../legal-content/EN/AUTO/')[1]
+            base_url = 'https://eur-lex.europa.eu/legal-content/EN/TXT/'
+            link = f'{base_url}{uri_identifier}'
+            links.append(link)
+
+        return attributes_list, links
+        
+    def extract_modifies_data(self):
+        """
+        extract the "modifies" table and return all the html tags if the table exist.
+        Otherwise, return None.
+        """
+        self.get_soup()
+        modifies_table = self.soup.find("dd", class_ = "data-table-MS")
+        if not modifies_table:
+            attributes_list, links = [[],[]]
+            return attributes_list, links
+        
+        attributes_list = [] #[{Relation':'','Act':'','Comment':'','Subdivision concerned':'','From':'','To':''},....]
+        rows = modifies_table.find_all('tr', {'role': 'row'})
+        for row in rows[1:]:
+            attri_keys = ['Relation', 'Act', 'Comment', 'Subdivision concerned', 'From','To']
+
+            attri_values = [] #['Completed by', '32025R2180', '', '', '', '']
+            tds = row.find_all('td')
+            for td in tds:
+                td_text = td.get_text().strip()
+                attri_values.append(td_text)
+
+            attribute_dict = {}
+            for attri_key, attri_value in zip(attri_keys,attri_values):
+                attribute_dict[attri_key] = attri_value
+            attributes_list.append(attribute_dict)
+
+        links =[]
+        for a in modifies_table.find_all('a'):
+            uri_identifier = a.get("href", "").split('./../../../legal-content/EN/AUTO/')[1]
+            base_url = 'https://eur-lex.europa.eu/legal-content/EN/TXT/'
+            link = f'{base_url}{uri_identifier}'
+            links.append(link)
+
+        return attributes_list, links
         
 
     
