@@ -129,7 +129,7 @@ class DocumentInfoScraper:
     def extract_modifiedby_data(self):
         """
         extract the "modified by" table and return all the html tags if the table exist.
-        Otherwise, return None.
+        Otherwise, return empty list.
         """
         self.get_soup()
         
@@ -166,7 +166,7 @@ class DocumentInfoScraper:
     def extract_modifies_data(self):
         """
         extract the "modifies" table and return all the html tags if the table exist.
-        Otherwise, return None.
+        Otherwise, return empty list.
         """
         self.get_soup()
         modifies_table = self.soup.find("dd", class_ = "data-table-MS")
