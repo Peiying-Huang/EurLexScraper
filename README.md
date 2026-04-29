@@ -42,7 +42,7 @@ Extract the content from the EUR-Lex websites. Each legal document's website (e.
    ```graph_data = GraphBuilder(url)```\
    #get the metadata from the modifies\
    ```modifies_data_list = graph_data.modifies_attributes_list```\
-   #subselect_modifies_attributes(self, relations=[], acts=[], comments=[], subdivisions=[], froms=[], tos=[])
+   #subselect_modifies_attributes(self, relations=[], acts=[], comments=[], subdivisions=[], froms=[], tos=[])\
    ```set_to_modifies = graph_data.subselect_modifies_attributes()```\
    ```modifies_graph = graph_data.create_graph()```
 
