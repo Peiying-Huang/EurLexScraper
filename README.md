@@ -76,7 +76,8 @@ The DocumentSumScraper extracts the data from the Document Summary page. There i
    **Note: The code raises an error when the website doesn't exist. Some of the websites only contain parts of the sections, e.g., {'Title and reference': , 'Dates': , 'Miscellaneous information': }.**.\
 
 
-## National Transposition
+## national_trans_scraper folder
+### NationalTransScraper
 The NationalTransScraper extracts the following structure.There is a testing file to test the code (national_trans_scraper_Test.ipynb)
   1. **->The codes to initialize the extraction:**\
       ```from national_trans_scaper import NationalTransScraper```\
