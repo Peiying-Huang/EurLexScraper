@@ -1,8 +1,6 @@
 import networkx as nx
-import matplotlib.pyplot as plt
 from document_info_scaper import DocumentInfoScraper
-import spacy
-import re
+
 
 class GraphBuilder:
     def __init__(self, url):
