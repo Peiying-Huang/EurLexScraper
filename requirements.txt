@@ -1,0 +1,6 @@
+#python  >= 3.13.5
+selenium == 4.41.0
+beautifulsoup4 == 4.14.3
+bs4 == 0.0.2
+networkx == 3.6.1
+urllib3 == 2.6.3
