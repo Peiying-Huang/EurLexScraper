@@ -1,5 +1,4 @@
 from selenium import webdriver
-from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin
@@ -15,24 +14,31 @@ class DocumentSumScraper:
             raise ValueError(f"This is not correct input url: {self.url}, please give a url like: https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32023R2631")
         self.uri_identifier = self.url.split('/TXT/')[1]
         self.info_url =  f'{self.base_url}/LSU/{self.uri_identifier}'
-        self.soup = None
+        self.soup = self.get_soup()
     
     def get_soup(self):
         """"
-        parse the content of a url
-        returns: soup object
+        parse the content of a url 
+        returns: the content of the website
         """
         url = self.info_url
         options = Options()# create an option instance 
         options.add_argument("--headless") # running in headless mode
         driver = webdriver.Chrome(options=options)#starts a new ChromeDriver instance.
-        driver.get(url)
-        time.sleep(5)  # wait for JS to load
 
-        # Get full rendered HTML
-        html = driver.page_source # gets the source of the current page
-        driver.quit()
-        self.soup = BeautifulSoup(html,"html.parser")
+        try:
+            driver.get(url)
+            time.sleep(5)
+            html = driver.page_source # gets the source of the current page
+            self.soup = BeautifulSoup(html,"html.parser")
+            return self.soup
+
+        except WebDriverException:
+            self.soup = None
+            return  # exit the function when this error is raised
+
+        finally:
+            driver.quit()
 
     def check_document_sum(self):
         """
@@ -45,11 +51,13 @@ class DocumentSumScraper:
 
         soup = self.soup
 
-        warning = soup.find('div', class_="alert alert-warning")
-
-        if warning:
-            warning_message = warning.get_text(strip=True)
-            raise ValueError(warning_message)
+        if soup != None:
+            warning = soup.find('div', class_="alert alert-warning")
+            if warning:
+                warning_message = warning.get_text(strip=True)
+                raise ValueError(warning_message)
+        else:
+            raise ValueError("The website doesn't exist.")
             
     
     def extract_keys(self):
@@ -138,7 +146,7 @@ class DocumentSumScraper:
         create a dictionary for the metadata
         return: a json file of metadata
         """
-        self.get_soup()
+        
         self.check_document_sum()
         list_keys = self.extract_keys()
         list_values = self.extract_values()
@@ -150,5 +158,5 @@ class DocumentSumScraper:
             dict_meta[key] = value
         dict_meta['Summary document url'] = self.collect_text_url()
         json_meta = json.dumps(dict_meta)
-        return json_meta
+        return json.loads(json_meta)
      
