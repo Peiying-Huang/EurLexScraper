@@ -1,5 +1,6 @@
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
+from selenium.common.exceptions import WebDriverException
 from bs4 import BeautifulSoup
 import time
 import json
@@ -13,7 +14,7 @@ class DocumentInfoScraper:
             raise ValueError(f"This is not a correct input url: {self.url}, please give url like: https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32023R2631")
         self.uri_identifier = self.url.split('/TXT/')[1]
         self.info_url =  f'{self.base_url}/ALL/{self.uri_identifier}'
-        self.soup = None
+        self.soup = self.get_soup()
    
     
     def get_soup(self):
@@ -40,7 +41,6 @@ class DocumentInfoScraper:
         finally:
             driver.quit()
         
-
     
     def extract_keys(self):
         """
@@ -102,7 +102,6 @@ class DocumentInfoScraper:
         create a dictionary for the metadata
         return: a json file of metadata
         """
-        self.get_soup()
         list_keys = self.extract_keys()
         list_values = self.extract_values()
         dict_meta = {}
@@ -112,7 +111,7 @@ class DocumentInfoScraper:
             value = list_values[i]
             dict_meta[key] = value
         json_meta = json.dumps(dict_meta)
-        return json_meta
+        return json.loads(json_meta)
     
     def get_document_num(self):
         """
@@ -130,8 +129,7 @@ class DocumentInfoScraper:
         extract the "modified by" table and return all the html tags if the table exist.
         Otherwise, return empty list.
         """
-        self.get_soup()
-        
+
         modifiedby_table = self.soup.find("dd", class_ ="data-table")# the only tag relates to the Modifiedby table
         if not modifiedby_table:
             attributes_list, links = [[],[]]
@@ -167,7 +165,6 @@ class DocumentInfoScraper:
         extract the "modifies" table and return all the html tags if the table exist.
         Otherwise, return empty list.
         """
-        self.get_soup()
         modifies_table = self.soup.find("dd", class_ = "data-table-MS")
         if not modifies_table:
             attributes_list, links = [[],[]]
