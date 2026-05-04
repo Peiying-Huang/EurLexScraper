@@ -29,29 +29,17 @@ Extract the content from the EUR-Lex websites. Each legal document's website (e.
    [link1, link2,....]
 
 ### Graphbuilder
-1. Make one graph on the main link. There is a testing file for the code (graph2_generate_one_graph_Test.ipynb).:\
-   **->The codes to initialize the building process of the modifiedby table:**\
-   ```graph_data = GraphBuilder(url)```\
-   #get the metadata from the modifiedby\
-   ```modifiedby_data_list = graph_data.modifiedby_attributes_list```\ 
-   #subselect_modifiedby_attributes(self, relations=[], acts=[], comments=[], subdivisions=[], froms=[], tos=[])\
-   ```set_to_modifiedby = graph_data.subselect_modifiedby_attributes()```\
-   ```modifiedby_graph = graph_data.create_graph() # modifiedby graph```
+Make a connected graph of the main link. The details are seen in the graph3_full_graph_Test.ipynb):\
+**Choose either the modifiedby table through the children class (Modifiedby) or the modifies table through the children class (Modifiedby). Otherwise, the code will scrape all the links, and it never ends. If the number of sites is not the same as the final output, run the codes again because the sites can be overloaded after opening multiple sites.**
+    1. **->The codes to initialize the building process of the modifiedby table:**\
+   ```from graph_builder import Modifiedby```\
+   ```mb = Modifiedby(url)```
+   ```graph = mb.generate_full_graph()```
    
-   **->The codes to initialize the building process of the modifies table:**\
-   ```graph_data = GraphBuilder(url)```\
-   #get the metadata from the modifies\
-   ```modifies_data_list = graph_data.modifies_attributes_list```\
-   #subselect_modifies_attributes(self, relations=[], acts=[], comments=[], subdivisions=[], froms=[], tos=[])\
-   ```set_to_modifies = graph_data.subselect_modifies_attributes()```\
-   ```modifies_graph = graph_data.create_graph()```
-
-   **->example output:**\
-   The blue dots are the document numbers.\
-   <img width="576" height="390" alt="Screenshot 2026-04-29 at 12 06 20" src="https://github.com/user-attachments/assets/1228b823-6e9b-45ec-a4ea-a284768eceab" />
-   
-3. Make a connected graph of the main link. The details are seen in the graph3_full_graph_Test.ipynb):\
-   **Choose either the modifiedby table or  the modifies table. Otherwise, the code will scrape all the links, and it never ends.**
+   2. **->The codes to initialize the building process of the modifies table:**\
+   ```from graph_builder import Modifies```\
+   ```ms = Modifies(url)```
+   ```graph = ms.generate_full_graph()```
    
    **->example output:**\
    The blue dots are the document numbers.\
