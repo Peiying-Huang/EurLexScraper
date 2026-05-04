@@ -106,8 +106,6 @@ class NationalTransScraper:
         country_names ['Belgium', 'Bulgaria', 'Czechia', 'Denmark', 'Germany', 'Estonia', 'Ireland', 'Greece' ...]
         country_values [{'Transposition deadline(s)': '', 'Number of measures': ''},{},{}, ...]
         """
-        #self.side_bar_check()
-        #self.get_soup()
         soup = self.soup
         
         countries = soup.find_all('div', class_= 'col-sm-12 ntmRow')
@@ -140,8 +138,6 @@ class NationalTransScraper:
         return: a list of lists of documenst
         [[documents from country1],[documents from country2],[documents from country3],...]
         """
-        #self.side_bar_check()
-        #self.get_soup()
         soup = self.soup
         
         measures_list = []
@@ -179,6 +175,7 @@ class NationalTransScraper:
         """
         self.side_bar_check()
         self.get_soup()
+        
         country_names, country_data = self.extract_country_data()
         country_measures = self.extract_measures_values()
 
@@ -196,6 +193,6 @@ class NationalTransScraper:
             dict_meta[country_name] = subdict
             
         json_meta = json.dumps(dict_meta)
-        return json_meta
+        return json.loads(json_meta)
 
     
