@@ -14,32 +14,72 @@ class DocumentInfoScraper:
             raise ValueError(f"This is not a correct input url: {self.url}, please give url like: https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32023R2631")
         self.uri_identifier = self.url.split('/TXT/')[1]
         self.info_url =  f'{self.base_url}/ALL/{self.uri_identifier}'
-        self.soup = self.get_soup()
-   
+        self.failed_urls = []
+
+       # ---- Initialize driver ONCE ----
+        options = Options()
+        options.add_argument("--headless=new")
+        options.add_argument("--disable-blink-features=AutomationControlled")
+        self.driver = webdriver.Chrome(options=options)
+
+        self.soup = None
+
+    # ---- Clean shutdown ----
+    def close(self):
+        if self.driver:
+            self.driver.quit()
+            self.driver = None
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc, traceback):
+        self.close()
+
+
+    def load_page(self, url, expected_check_fn=None, max_attempts=5, base_delay=2):
+        """load a page, if the loading process is not sucessful. Try 5 times"""
+        for attempt in range(max_attempts):
+            try:
+                self.driver.get(url)
+                time.sleep(1)
+
+                html = self.driver.page_source
+                lowered = html.lower()
+
+                if (
+                    "access denied" in lowered
+                    or "forbidden" in lowered
+                    or "captcha" in lowered
+                    or len(html.strip()) < 1000
+                ):
+                    raise ValueError("Blocked or invalid page")
+
+                soup = BeautifulSoup(html, "html.parser")
+
+                if expected_check_fn and not expected_check_fn(soup):
+                    raise ValueError("Expected content not found")
+
+                return soup
+
+            except (WebDriverException, ValueError) as e:
+                if attempt == max_attempts - 1:
+                    self.failed_urls.append({
+                        "url": url,
+                        "error": str(e)
+                    })
+                    return None
+
+                delay = base_delay * (2 ** attempt)
+                time.sleep(delay)
     
     def get_soup(self):
         """"
         parse the content of a url 
         returns: the content of the website
         """
-        url = self.info_url
-        options = Options()# create an option instance 
-        options.add_argument("--headless") # running in headless mode
-        driver = webdriver.Chrome(options=options)#starts a new ChromeDriver instance.
-
-        try:
-            driver.get(url)
-            time.sleep(5)
-            html = driver.page_source # gets the source of the current page
-            self.soup = BeautifulSoup(html,"html.parser")
-            return self.soup
-
-        except WebDriverException:
-            self.soup = None
-            return  # exit the function when this error is raised
-
-        finally:
-            driver.quit()
+        self.soup = self.load_page(self.info_url)
+        return self.soup
         
     
     def extract_keys(self):
@@ -102,6 +142,7 @@ class DocumentInfoScraper:
         create a dictionary for the metadata
         return: a json file of metadata
         """
+        self.soup = self.get_soup()
         list_keys = self.extract_keys()
         list_values = self.extract_values()
         dict_meta = {}
@@ -111,13 +152,14 @@ class DocumentInfoScraper:
             value = list_values[i]
             dict_meta[key] = value
         json_meta = json.dumps(dict_meta)
+
         return json.loads(json_meta)
     
     def get_document_num(self):
         """
         extract document number for making graphs
         """
-        document_block = self.soup
+        document_block = self.get_soup()
         if document_block is not  None:
             document = document_block.find("p", class_ = "DocumentTitle pull-left")
             document_number = document.get_text().split()[1]
@@ -129,10 +171,12 @@ class DocumentInfoScraper:
         extract the "modified by" table and return all the html tags if the table exist.
         Otherwise, return empty list.
         """
-
-        modifiedby_table = self.soup.find("dd", class_ ="data-table")# the only tag relates to the Modifiedby table
+        self.soup = self.get_soup()
+        modifiedby_table = self.soup.find("dd", class_ ="data-table")# the only tag relates to the Modifiedby tabl
+                
         if not modifiedby_table:
-            attributes_list, links = [[],[]]
+            attributes_list =[]
+            links = []
             return attributes_list, links
         
         attributes_list = [] #[{Relation':'','Act':'','Comment':'','Subdivision concerned':'','From':'','To':''},....]
@@ -157,7 +201,7 @@ class DocumentInfoScraper:
             base_url = 'https://eur-lex.europa.eu/legal-content/EN/TXT/'
             link = f'{base_url}{uri_identifier}'
             links.append(link)
-
+        
         return attributes_list, links
         
     def extract_modifies_data(self):
@@ -165,9 +209,12 @@ class DocumentInfoScraper:
         extract the "modifies" table and return all the html tags if the table exist.
         Otherwise, return empty list.
         """
+        self.soup = self.get_soup()
         modifies_table = self.soup.find("dd", class_ = "data-table-MS")
+                
         if not modifies_table:
-            attributes_list, links = [[],[]]
+            attributes_list =[]
+            links = []
             return attributes_list, links
         
         attributes_list = [] #[{Relation':'','Act':'','Comment':'','Subdivision concerned':'','From':'','To':''},....]
