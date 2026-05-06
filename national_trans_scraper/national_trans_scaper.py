@@ -1,5 +1,6 @@
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
+from selenium.common.exceptions import WebDriverException
 from bs4 import BeautifulSoup
 import time
 import json
@@ -15,89 +16,102 @@ class NationalTransScraper:
         self.exist = None
         self.nim_url = None
         self.soup = None
+        self.failed_urls = []
+        
+        # ---- Initialize driver ONCE ----
+        options = Options()
+        options.add_argument("--headless=new")
+        options.add_argument("--disable-blink-features=AutomationControlled")
+        self.driver = webdriver.Chrome(options=options)
 
+    # ---- Clean shutdown ----
+    def close(self):
+        if self.driver:
+            self.driver.quit()
+            self.driver = None
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc, traceback):
+        self.close()
+
+   
+    def load_page(self, url, expected_check_fn=None, max_attempts=5, base_delay=2):
+        """load a page, if the loading process is not sucessful. Try 5 times"""
+        for attempt in range(max_attempts):
+            try:
+                self.driver.get(url)
+                time.sleep(1)
+
+                html = self.driver.page_source
+                lowered = html.lower()
+
+                if (
+                    "access denied" in lowered
+                    or "forbidden" in lowered
+                    or "captcha" in lowered
+                    or len(html.strip()) < 1000
+                ):
+                    raise ValueError("Blocked or invalid page")
+
+                soup = BeautifulSoup(html, "html.parser")
+
+                if expected_check_fn and not expected_check_fn(soup):
+                    raise ValueError("Expected content not found")
+
+                return soup
+
+            except (WebDriverException, ValueError) as e:
+                if attempt == max_attempts - 1:
+                    NationalTransScraper.failed_urls.append({
+                        "url": url,
+                        "error": str(e)
+                    })
+                    return None
+
+                delay = base_delay * (2 ** attempt)
+                time.sleep(delay)
+    
     def side_bar_check(self):
         """
         check if the 'National transposition' exists on the left side bar of the document info page.
         returns: self.exist (True/False)
         """
+        def has_nim(soup):
+            side_bar = soup.find('nav', {"id": "AffixSidebar"})
+            if not side_bar:
+                return False
+            names = [a.get_text().strip() for a in side_bar.find_all('a')]
+            return 'National transposition' in names
         
-        url = self.url
-        options = Options()# create an option instance 
-        options.add_argument("--headless") # running in headless mode
-        driver = webdriver.Chrome(options=options)
-        
-        driver.get(url)
-        time.sleep(5)
-        html = driver.page_source # gets the source of the current page
-        
-        info_soup = BeautifulSoup(html,"html.parser")
-        side_bar = info_soup.find('nav',{"id":"AffixSidebar"})
-        if side_bar is not None: 
-            a_tags = side_bar.find_all('a')
-            side_bar_names = [a_tag.get_text().strip() for a_tag in a_tags]
-            if 'National transposition' in side_bar_names:
-                self.exist = True
-                return self.exist
-            else:
-                self.exist = False
-                return self.exist
-        else:
+        soup = self.load_page(
+            self.url,
+            expected_check_fn=lambda s: s.find('nav', {"id": "AffixSidebar"}) is not None
+        )
+
+        if not soup:
             self.exist = False
             return self.exist
-              
-    
+
+        self.exist = has_nim(soup)
+        return self.exist
+
+
     def get_soup(self):
-        """"
-        parse the content of a url 
-        returns: the content of the website
         """
-        self.exist
-        if self.exist:
-            self.base_url
-            self.uri_identifier
-            self.nim_url = f'{self.base_url}/NIM/{self.uri_identifier}'
-        else:
+        check if the nim website exist, make the nim website and get soup
+        """
+        if not self.exist:
             raise ValueError("The National Transposition page doesn't exist.")
-        
-        url = self.nim_url
-        options = Options()# create an option instance 
-        options.add_argument("--headless") # running in headless mode
-        driver = webdriver.Chrome(options=options)#starts a new ChromeDriver instance.
 
-        try:
-            driver.get(url)
-            time.sleep(5)
-            html = driver.page_source # gets the source of the current page
-            self.soup = BeautifulSoup(html,"html.parser")
-            return self.soup
+        self.nim_url = f'{self.base_url}/NIM/{self.uri_identifier}'
 
-        except WebDriverException:
-            self.soup = None
-            return  # exit the function when this error is raised
+        def has_nim_content(soup):
+            return bool(soup.find_all('div', class_='col-sm-12 ntmRow'))
 
-        finally:
-            driver.quit()
-            
-    #def check_national_trans(self):
-        #"""
-        #check whether the page contains a warning message, which indicates
-        #that the national transposition is unavailable or invalid.
-        
-        #Raises valueError:
-        #If a warning message is found on the page.The error message will contain the warning text.
-        #"""
-
-        #soup = self.soup
-
-        #warning = soup.find('div', class_="alert alert-warning")
-
-        #if warning:
-            #warning_message = warning.get_text(strip=True)
-            #raise ValueError(warning_message)
-        #else:
-            #print('The national transpositions page is found.')
-        
+        self.soup = self.load_page(self.nim_url, expected_check_fn=has_nim_content)
+        return self.soup
 
     def extract_country_data(self):
         """"
@@ -193,6 +207,11 @@ class NationalTransScraper:
             dict_meta[country_name] = subdict
             
         json_meta = json.dumps(dict_meta)
+
+        if self.failed_urls is not None:
+            for failed_url in failed_urls:
+                print(f"{failed_url} can't be loaded.")
+        
         return json.loads(json_meta)
 
     
