@@ -317,10 +317,7 @@ data = scraper.build_json_metadata()
 
 ## Notes
 
-- If a value is a hyperlink, both the displayed text and the URL are stored as a dictionary.
-
-- This applies to:
-  
+- If a value is a hyperlink, both the displayed text and the URL are stored as a dictionary. This applies to:
   - `Summarised and linked documents`
   - `Miscellaneous information`
 
