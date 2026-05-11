@@ -22,7 +22,7 @@ class DocumentInfoScraper:
         options.add_argument("--disable-blink-features=AutomationControlled")
         self.driver = webdriver.Chrome(options=options)
 
-        self.soup = None
+        self.soup = self.get_soup()
 
     # ---- Clean shutdown ----
     def close(self):
@@ -36,8 +36,7 @@ class DocumentInfoScraper:
     def __exit__(self, exc_type, exc, traceback):
         self.close()
 
-
-    def load_page(self, url, expected_check_fn=None, max_attempts=5, base_delay=2):
+    def _load_page(self, url, expected_check_fn=None, max_attempts=5, base_delay=4):
         """load a page, if the loading process is not sucessful. Try 5 times"""
         for attempt in range(max_attempts):
             try:
@@ -58,7 +57,7 @@ class DocumentInfoScraper:
                 soup = BeautifulSoup(html, "html.parser")
 
                 if expected_check_fn and not expected_check_fn(soup):
-                    raise ValueError("Expected content not found")
+                    raise ValueError("Expected content not found in the side bar. The Document Summary page doesn't exist.")
 
                 return soup
 
@@ -72,13 +71,13 @@ class DocumentInfoScraper:
 
                 delay = base_delay * (2 ** attempt)
                 time.sleep(delay)
-    
+                
     def get_soup(self):
         """"
         parse the content of a url 
         returns: the content of the website
         """
-        self.soup = self.load_page(self.info_url)
+        self.soup = self._load_page(self.info_url)
         return self.soup
         
     
@@ -142,7 +141,6 @@ class DocumentInfoScraper:
         create a dictionary for the metadata
         return: a json file of metadata
         """
-        self.soup = self.get_soup()
         list_keys = self.extract_keys()
         list_values = self.extract_values()
         dict_meta = {}
@@ -159,19 +157,16 @@ class DocumentInfoScraper:
         """
         extract document number for making graphs
         """
-        document_block = self.get_soup()
-        if document_block is not  None:
-            document = document_block.find("p", class_ = "DocumentTitle pull-left")
+        if self.soup:
+            document = self.soup.find("p", class_ = "DocumentTitle pull-left")
             document_number = document.get_text().split()[1]
         return document_number
-
   
     def extract_modifiedby_data(self):
         """
         extract the "modified by" table and return all the html tags if the table exist.
         Otherwise, return empty list.
         """
-        self.soup = self.get_soup()
         modifiedby_table = self.soup.find("dd", class_ ="data-table")# the only tag relates to the Modifiedby tabl
                 
         if not modifiedby_table:
@@ -209,7 +204,6 @@ class DocumentInfoScraper:
         extract the "modifies" table and return all the html tags if the table exist.
         Otherwise, return empty list.
         """
-        self.soup = self.get_soup()
         modifies_table = self.soup.find("dd", class_ = "data-table-MS")
                 
         if not modifies_table:

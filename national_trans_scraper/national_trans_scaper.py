@@ -192,8 +192,6 @@ class NationalTransScraper:
         create a dictionary for the metadata
         return: a json file of metadata
         """
-        self.side_bar_check()
-        self.get_soup()
         
         country_names, country_data = self.extract_country_data()
         country_measures = self.extract_measures_values()

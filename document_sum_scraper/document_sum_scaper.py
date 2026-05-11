@@ -204,9 +204,6 @@ class DocumentSumScraper:
         return: a json file of metadata
         """
         
-        self.side_bar_check()
-        self.get_soup()
-        
         list_keys = self.extract_keys()
         list_values = self.extract_values()
         dict_meta = {}
