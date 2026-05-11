@@ -1,5 +1,6 @@
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
+from selenium.common.exceptions import WebDriverException
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin
 import time
@@ -13,52 +14,103 @@ class DocumentSumScraper:
         if len(parts) < 2 or not parts[1]:
             raise ValueError(f"This is not correct input url: {self.url}, please give a url like: https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32023R2631")
         self.uri_identifier = self.url.split('/TXT/')[1]
-        self.info_url =  f'{self.base_url}/LSU/{self.uri_identifier}'
-        self.soup = self.get_soup()
-    
+        self.exist = None
+        self.sum_url = None
+        self.soup = None
+        self.failed_urls = []
+        
+        # ---- Initialize driver ONCE ----
+        options = Options()
+        options.add_argument("--headless=new")
+        options.add_argument("--disable-blink-features=AutomationControlled")
+        self.driver = webdriver.Chrome(options=options)
+
+    # ---- Clean shutdown ----
+    def close(self):
+        if self.driver:
+            self.driver.quit()
+            self.driver = None
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc, traceback):
+        self.close()
+
+    def load_page(self, url, expected_check_fn=None, max_attempts=5, base_delay=2):
+        """load a page, if the loading process is not sucessful. Try 5 times"""
+        for attempt in range(max_attempts):
+            try:
+                self.driver.get(url)
+                time.sleep(1)
+
+                html = self.driver.page_source
+                lowered = html.lower()
+
+                if (
+                    "access denied" in lowered
+                    or "forbidden" in lowered
+                    or "captcha" in lowered
+                    or len(html.strip()) < 1000
+                ):
+                    raise ValueError("Blocked or invalid page")
+
+                soup = BeautifulSoup(html, "html.parser")
+
+                if expected_check_fn and not expected_check_fn(soup):
+                    raise ValueError("Expected content not found in the side bar. The Document Summary page doesn't exist.")
+
+                return soup
+
+            except (WebDriverException, ValueError) as e:
+                if attempt == max_attempts - 1:
+                    self.failed_urls.append({
+                        "url": url,
+                        "error": str(e)
+                    })
+                    return None
+
+                delay = base_delay * (2 ** attempt)
+                time.sleep(delay)
+        
+   
+    def side_bar_check(self):
+        """
+        check if the 'Document summary' exists on the left side bar of the document info page.
+        returns: self.exist (True/False)
+        """
+        def has_sum(soup):
+            side_bar = soup.find('nav', {"id": "AffixSidebar"})
+            if not side_bar:
+                return False
+            names = [a.get_text().strip() for a in side_bar.find_all('a')]
+            return 'Document summary' in names
+        
+        soup = self.load_page(
+            self.url,
+            expected_check_fn=lambda s: s.find('nav', {"id": "AffixSidebar"}) is not None
+        )
+
+        if not soup:
+            self.exist = False
+            return self.exist
+
+        self.exist = has_sum(soup)
+        return self.exist
+
     def get_soup(self):
         """"
         parse the content of a url 
         returns: the content of the website
         """
-        url = self.info_url
-        options = Options()# create an option instance 
-        options.add_argument("--headless") # running in headless mode
-        driver = webdriver.Chrome(options=options)#starts a new ChromeDriver instance.
+        if not self.exist:
+            raise ValueError("The National Transposition page doesn't exist.")
 
-        try:
-            driver.get(url)
-            time.sleep(5)
-            html = driver.page_source # gets the source of the current page
-            self.soup = BeautifulSoup(html,"html.parser")
-            return self.soup
-
-        except WebDriverException:
-            self.soup = None
-            return  # exit the function when this error is raised
-
-        finally:
-            driver.quit()
-
-    def check_document_sum(self):
-        """
-        check whether the page contains a warning message, which indicates
-        that the document summary is unavailable or invalid.
+        self.sum_url = f'{self.base_url}/LSU/{self.uri_identifier}'
+        url = self.sum_url
+        self.soup = self.load_page(url)
         
-        Raises valueError:
-        If a warning message is found on the page.The error message will contain the warning text.
-        """
-
-        soup = self.soup
-
-        if soup != None:
-            warning = soup.find('div', class_="alert alert-warning")
-            if warning:
-                warning_message = warning.get_text(strip=True)
-                raise ValueError(warning_message)
-        else:
-            raise ValueError("The website doesn't exist.")
-            
+        return self.soup
     
     def extract_keys(self):
         """
@@ -147,7 +199,9 @@ class DocumentSumScraper:
         return: a json file of metadata
         """
         
-        self.check_document_sum()
+        self.side_bar_check()
+        self.get_soup()
+        
         list_keys = self.extract_keys()
         list_values = self.extract_values()
         dict_meta = {}
