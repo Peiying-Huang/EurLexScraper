@@ -14,9 +14,6 @@ class DocumentSumScraper:
         if len(parts) < 2 or not parts[1]:
             raise ValueError(f"This is not correct input url: {self.url}, please give a url like: https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32023R2631")
         self.uri_identifier = self.url.split('/TXT/')[1]
-        self.exist = None
-        self.sum_url = None
-        self.soup = None
         self.failed_urls = []
         
         # ---- Initialize driver ONCE ----
@@ -24,6 +21,9 @@ class DocumentSumScraper:
         options.add_argument("--headless=new")
         options.add_argument("--disable-blink-features=AutomationControlled")
         self.driver = webdriver.Chrome(options=options)
+
+        self.exist = self.side_bar_check()
+        self.soup = self.get_soup()
 
     # ---- Clean shutdown ----
     def close(self):
@@ -37,7 +37,7 @@ class DocumentSumScraper:
     def __exit__(self, exc_type, exc, traceback):
         self.close()
 
-    def load_page(self, url, expected_check_fn=None, max_attempts=5, base_delay=2):
+    def _load_page(self, url, expected_check_fn=None, max_attempts=5, base_delay=2):
         """load a page, if the loading process is not sucessful. Try 5 times"""
         for attempt in range(max_attempts):
             try:
@@ -81,12 +81,17 @@ class DocumentSumScraper:
         """
         def has_sum(soup):
             side_bar = soup.find('nav', {"id": "AffixSidebar"})
-            if not side_bar:
-                return False
-            names = [a.get_text().strip() for a in side_bar.find_all('a')]
-            return 'Document summary' in names
+
+            if side_bar:
+                names = [a.get_text().strip() for a in side_bar.find_all('a')]
+                if 'Document summary' in names:
+                    self.exist = True
+                    return self.exist
+            else:
+                self.exist = False
+                return self.exist
         
-        soup = self.load_page(
+        soup = self._load_page(
             self.url,
             expected_check_fn=lambda s: s.find('nav', {"id": "AffixSidebar"}) is not None
         )
@@ -94,9 +99,9 @@ class DocumentSumScraper:
         if not soup:
             self.exist = False
             return self.exist
-
-        self.exist = has_sum(soup)
-        return self.exist
+        else:
+            self.exist = has_sum(soup)
+            return self.exist
 
     def get_soup(self):
         """"
@@ -104,11 +109,11 @@ class DocumentSumScraper:
         returns: the content of the website
         """
         if not self.exist:
-            raise ValueError("The National Transposition page doesn't exist.")
+            raise ValueError("The Document Summary page doesn't exist.")
 
-        self.sum_url = f'{self.base_url}/LSU/{self.uri_identifier}'
-        url = self.sum_url
-        self.soup = self.load_page(url)
+        sum_url = f'{self.base_url}/LSU/{self.uri_identifier}'
+    
+        self.soup = self._load_page(sum_url)
         
         return self.soup
     
