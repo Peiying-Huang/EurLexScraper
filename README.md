@@ -216,17 +216,18 @@ graph = ms.generate_full_graph(full_urls, visualize = True)
 
 Implementation details can be found in:
 
-- `graph3_full_graph_Test.ipynb`
+- `graph2_full_graph_Test.ipynb`
 
 This method allows filtering the graph by a specific relation type.
+
+Select the relevant links from the arguments: 
+```python
+(relations=[], acts=[], comments=[], subdivisions=[], froms=[], tos=[]):
+```python
 
 ---
 
 ### 2.1 Build a Selected `modifiedby` Graph
-#### Select the relevent links from the arguments: 
-```python
-(relations=[], acts=[], comments=[], subdivisions=[], froms=[], tos=[]):
-```python
 
 #### Initialize the Process
 
