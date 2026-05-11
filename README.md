@@ -162,7 +162,8 @@ Implementation details can be found in:
 > Otherwise, the scraper will continue scraping all related links indefinitely and may never terminate.
 >
 > If the number of scraped sites does not match the final output, rerun the code. Some websites may become overloaded after multiple simultaneous requests.
-> The 
+> Error messages will show up if the code opens the websites unsuccessfully:
+> - find the failed URLs through `print(mb.failed_urls)`
 
 ---
 
@@ -221,9 +222,7 @@ Implementation details can be found in:
 This method allows filtering the graph by a specific relation type.
 
 Select the relevant links from the arguments: 
-```python
 (relations=[], acts=[], comments=[], subdivisions=[], froms=[], tos=[]):
-```python
 
 ---
 
