@@ -222,7 +222,9 @@ Implementation details can be found in:
 This method allows filtering the graph by a specific relation type.
 
 Select the relevant links from the arguments: 
-(relations=[], acts=[], comments=[], subdivisions=[], froms=[], tos=[]):
+```python
+create_selected_urls(relations=[], acts=[], comments=[], subdivisions=[], froms=[], tos=[])
+```
 
 ---
 
@@ -438,7 +440,7 @@ The scraper first checks whether the **National Transposition** section exists i
 
 ## Notes
 
-- The length of the measures should be the same as the number of measures.
+The length of the measures should be the same as the number of measures.
    
    
 
