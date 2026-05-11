@@ -58,13 +58,13 @@ class NationalTransScraper:
                 soup = BeautifulSoup(html, "html.parser")
 
                 if expected_check_fn and not expected_check_fn(soup):
-                    raise ValueError("Expected content not found")
+                    raise ValueError("Expected content not found in the side bar. The National Transposition page doesn't exist.")
 
                 return soup
 
             except (WebDriverException, ValueError) as e:
                 if attempt == max_attempts - 1:
-                    NationalTransScraper.failed_urls.append({
+                    self.failed_urls.append({
                         "url": url,
                         "error": str(e)
                     })
@@ -207,10 +207,6 @@ class NationalTransScraper:
             dict_meta[country_name] = subdict
             
         json_meta = json.dumps(dict_meta)
-
-        if self.failed_urls is not None:
-            for failed_url in failed_urls:
-                print(f"{failed_url} can't be loaded.")
         
         return json.loads(json_meta)
 
