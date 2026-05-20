@@ -1,27 +1,31 @@
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
-from selenium.common.exceptions import WebDriverException
+from selenium.common.exceptions import WebDriverException, TimeoutException
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.wait import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 from bs4 import BeautifulSoup
 import time
 import json
 
 class DocumentInfoScraper:
-    def __init__(self, url):
+    def __init__(self, url, delay_time_asynchronous_max= 0.1):
+        #experiment delay_time_asynchronous when you need to open multiple websites, when it is 0, {} was returned often
         self.url = url
         self.base_url = "https://eur-lex.europa.eu/legal-content/EN"
         parts = self.url.split('/TXT/')
         if len(parts) < 2 or not parts[1]:
             raise ValueError(f"This is not a correct input url: {self.url}, please give url like: https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32023R2631")
-        self.uri_identifier = self.url.split('/TXT/')[1]
+        self.uri_identifier = parts[1]
         self.info_url =  f'{self.base_url}/ALL/{self.uri_identifier}'
         self.failed_urls = []
 
-       # ---- Initialize driver ONCE ----
         options = Options()
         options.add_argument("--headless=new")
         options.add_argument("--disable-blink-features=AutomationControlled")
         self.driver = webdriver.Chrome(options=options)
 
+        self.delay_time_asynchronous_max = delay_time_asynchronous_max #when it opens multiple websites 
         self.soup = self.get_soup()
 
     # ---- Clean shutdown ----
@@ -35,42 +39,35 @@ class DocumentInfoScraper:
 
     def __exit__(self, exc_type, exc, traceback):
         self.close()
-
-    def _load_page(self, url, expected_check_fn=None, max_attempts=5, base_delay=4):
+        
+    def _load_page(self, url, max_attempts=5, base_delay=1):
         """load a page, if the loading process is not sucessful. Try 5 times"""
         for attempt in range(max_attempts):
             try:
-                self.driver.get(url)
-                time.sleep(1)
+                self.driver.get(url) ### Load a new web page in the current browser window via HTTP POST to request data. --> waiter is ordering the dish
 
-                html = self.driver.page_source
-                lowered = html.lower()
+                loading = WebDriverWait(self.driver, self.delay_time_asynchronous_max).until(EC.presence_of_element_located((By.CLASS_NAME, "NMetadata")))
+                # wait for a MAXIUM amount of waiting time until it finds the class in any tag. Raise an error when it doesn't work
 
-                if (
-                    "access denied" in lowered
-                    or "forbidden" in lowered
-                    or "captcha" in lowered
-                    or len(html.strip()) < 1000
-                ):
-                    raise ValueError("Blocked or invalid page")
+                source = self.driver.page_source #Get the source of the last loaded page--> get the dish on the table
 
-                soup = BeautifulSoup(html, "html.parser")
-
-                if expected_check_fn and not expected_check_fn(soup):
-                    raise ValueError("Expected content not found in the side bar. The Document Summary page doesn't exist.")
+                soup = BeautifulSoup(source, "html.parser")
 
                 return soup
-
-            except (WebDriverException, ValueError) as e:
-                if attempt == max_attempts - 1:
+            
+            except (WebDriverException, TimeoutException) as e:
+                #web driver exception: stale element, no such window, browser crash, etc;
+                #timeout exception: element isn't found in time
+                if attempt == max_attempts-1:
                     self.failed_urls.append({
                         "url": url,
                         "error": str(e)
                     })
-                    return None
-
-                delay = base_delay * (2 ** attempt)
-                time.sleep(delay)
+                    raise ValueError("Try 5 attempt, but the website doesn't return intended content. Try to increase delay time.")
+                else:
+                    #print(f'Try {attempt+1} attempt') #--> can be used to debug
+                    delay = base_delay * (2 ** attempt) # fixed time to wait
+                    time.sleep(delay)   
                 
     def get_soup(self):
         """"
@@ -79,6 +76,7 @@ class DocumentInfoScraper:
         """
         self.soup = self._load_page(self.info_url)
         return self.soup
+
         
     
     def extract_keys(self):
@@ -141,6 +139,7 @@ class DocumentInfoScraper:
         create a dictionary for the metadata
         return: a json file of metadata
         """
+   
         list_keys = self.extract_keys()
         list_values = self.extract_values()
         dict_meta = {}
@@ -152,7 +151,7 @@ class DocumentInfoScraper:
         json_meta = json.dumps(dict_meta)
 
         return json.loads(json_meta)
-    
+
     def get_document_num(self):
         """
         extract document number for making graphs
@@ -166,6 +165,7 @@ class DocumentInfoScraper:
         """
         extract the "modified by" table and return all the html tags if the table exist.
         Otherwise, return empty list.
+        [{'Relation': , 'Act': , 'Comment': , 'Subdivision concerned': , 'From': ,'To':  }, ...]
         """
         modifiedby_table = self.soup.find("dd", class_ ="data-table")# the only tag relates to the Modifiedby tabl
                 
@@ -173,6 +173,7 @@ class DocumentInfoScraper:
             attributes_list =[]
             links = []
             return attributes_list, links
+            #raise ValueError()
         
         attributes_list = [] #[{Relation':'','Act':'','Comment':'','Subdivision concerned':'','From':'','To':''},....]
         rows = modifiedby_table.find_all('tr', {'role': 'row'})
