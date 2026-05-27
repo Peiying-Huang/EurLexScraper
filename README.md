@@ -238,19 +238,6 @@ Select the relevant links from the arguments:
 ```python
 create_selected_urls(relations=[], acts=[], comments=[], subdivisions=[], froms=[], tos=[])
 ```
----
-### Example Output
-
-- The blue nodes represent the document numbers.
-
-<img
-    width="602"
-    height="409"
-    alt="Example Full Graph"
-    src="https://github.com/user-attachments/assets/654cbcce-c8e4-4b4e-b506-01dd7dd145ac"
-/>
-
----
 
 
 ### 2.1 Build a Selected `modifiedby` Graph
