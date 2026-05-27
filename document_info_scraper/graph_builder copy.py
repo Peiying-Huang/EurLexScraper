@@ -21,25 +21,21 @@ class GraphBuilder:
         self.G = nx.DiGraph()
         self.failed_urls = []
 
-    def graph_data(self, selected_attr = []):
+    def graph_data(self):
         """ 
         extract graph data from the "Modified By" table.
         return: 
         node_list:[32023R2631R(01), 2023R2631R(02),...]
         edge_attri_list:[{'relation':'modifies', 'weight':'1.0'},{'relation':'modifies', 'weight':'1.0'},....]
         """
-        if selected_attr == []:
-            attr_list = self.attributes_list
-        else:
-            attr_list = selected_attr
-
+        
         node_list = [] #[32023R2631R(01), 2023R2631R(02),...]
-        for act in attr_list:
+        for act in self.attributes_list:
             node_label = act['Act']
             node_list.append(node_label)
 
         edge_attri_list = [] #[{'relation':'modifies', 'weight':'1.0'},{'relation':'modifies', 'weight':'1.0'},....]
-        for relation in attr_list:
+        for relation in self.attributes_list:
             relation_dict = {}
             relation_dict['relation'] = relation['Relation']
             relation_dict['weight'] = 1.0
@@ -48,21 +44,17 @@ class GraphBuilder:
         return node_list, edge_attri_list
 
     
-    def create_graph(self, selected_attr = []):
+    def create_graph(self):
         """
         create a graph based on attributes_list,node_list, edge_attri_list
         return a graph
         """
-        if selected_attr == []:
-            attributes_list = self.attributes_list
-            is_valid = self.graph_data()
-        else:
-            attributes_list = selected_attr
-            is_valid = self.graph_data(selected_attr)
-
-        if is_valid:
-            node_list, edge_attri_list = is_valid
-
+        is_valid = self.graph_data()
+        if not is_valid:
+            return # Exit
+        
+        attributes_list = self.attributes_list
+        node_list, edge_attri_list = is_valid
         G = nx.DiGraph()
         G.add_node(self.document)
         form_node_list = zip(node_list,attributes_list)
@@ -219,12 +211,9 @@ class Modifiedby(GraphBuilder):
         return all_urls
 
 
-    def generate_full_graph(self, urls, visualize = False, progress = False, selected= False, **filter_kwargs):
+    def generate_full_graph(self, urls, visualize = False, progress = False):
 
-        """Generate a full/ selected graph from all connected documents
-            **filter_kwargs: relations=[], acts=[], comments=[], subdivisions=[], froms=[], tos=[]
-        """
-
+        """Generate a full graph from all connected documents"""
         
         all_links = urls
 
@@ -241,12 +230,7 @@ class Modifiedby(GraphBuilder):
                     cache[link] = Modifiedby(link, self.delay_time_asynchronous)
                 obj = cache[link]
 
-                if selected:
-                    selected_attr,_ = obj.subselect_modifiedby(**filter_kwargs)
-                    selected_G = obj.create_graph(selected_attr)
-                else:
-                    selected_G = obj.create_graph()
-            return  selected_G
+            return obj.create_graph()
 
         with ThreadPoolExecutor(max_workers=10) as executor:
             page_operations = [executor.submit(get_data, link) for link in all_links]
@@ -426,11 +410,9 @@ class Modifies(GraphBuilder):
         self.logger.info("Total URLs collected: %s", num_of_urls)
         return all_urls
         
-    def generate_full_graph(self, urls, max_workers=10, visualize = False, progress = False, selected = False, **filter_kwargs):
+    def generate_full_graph(self, urls, max_workers=10, visualize = False, progress = True):
 
-        """Generate a full/ selected graph from all connected documents
-            **filter_kwargs: relations=[], acts=[], comments=[], subdivisions=[], froms=[], tos=[]
-        """
+        """Generate a full graph from all connected documents"""
         
         all_links = urls
 
@@ -444,18 +426,13 @@ class Modifies(GraphBuilder):
         def get_data(link):
             with lock:
                 if link not in cache:
-                    cache[link] = Modifies(link, self.delay_time_asynchronous)
+                    cache[link] = Modifiedby(link, self.delay_time_asynchronous)
                 obj = cache[link]
 
-                if selected:
-                    selected_attr,_ = obj.subselect_modifies(**filter_kwargs)
-                    selected_G = obj.create_graph(selected_attr)
-                else:
-                    selected_G = obj.create_graph()
-            return  selected_G
+            return obj.create_graph()
        
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
-            page_operations = [executor.submit(get_data, link) for link in all_links]
+            page_operations = [executor.submit(self.get_data, link) for link in all_links]
 
             for page in tqdm(as_completed(page_operations), total=len(page_operations), desc="Building graph"):
                 G_sub = page.result()
@@ -502,7 +479,7 @@ class Modifies(GraphBuilder):
             matched_indices, matched_metadata = [], []
 
         self.attrs = list(matched_metadata)
-        selected_links = [self.modifies_links[i] for i in matched_indices] # re-initialized???
+        selected_links = [self.modifiedby_links[i] for i in matched_indices] # re-initialized???
         
         return self.attrs, selected_links
     

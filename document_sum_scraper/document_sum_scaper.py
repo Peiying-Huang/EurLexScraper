@@ -1,13 +1,16 @@
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.common.exceptions import WebDriverException
+from selenium.webdriver.support.wait import WebDriverWait
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support import expected_conditions as EC
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin
 import time
 import json
 
 class DocumentSumScraper:
-    def __init__(self, url):
+    def __init__(self, url, delay_time_asynchronous_max= 0.1):
         self.url = url
         self.base_url = "https://eur-lex.europa.eu/legal-content/EN"
         parts = self.url.split('/TXT/') # raise value error if the url is not correct format
@@ -22,8 +25,11 @@ class DocumentSumScraper:
         options.add_argument("--disable-blink-features=AutomationControlled")
         self.driver = webdriver.Chrome(options=options)
 
+        self.delay_time_asynchronous_max = delay_time_asynchronous_max
+
         self.exist = self.side_bar_check()
         self.soup = self.get_soup()
+        
 
     # ---- Clean shutdown ----
     def close(self):
@@ -34,32 +40,20 @@ class DocumentSumScraper:
     def __enter__(self):
         return self
 
-    def __exit__(self, exc_type, exc, traceback):
+    def __exit__(self):
         self.close()
 
-    def _load_page(self, url, expected_check_fn=None, max_attempts=5, base_delay=2):
+    def _load_page(self, url, expected_tag = "NMetadata", max_attempts=5, base_delay=2):
         """load a page, if the loading process is not sucessful. Try 5 times"""
         for attempt in range(max_attempts):
             try:
                 self.driver.get(url)
-                time.sleep(1)
+            
+                loading = WebDriverWait(self.driver, self.delay_time_asynchronous_max).until(EC.presence_of_element_located((By.CLASS_NAME, expected_tag)))
+                #wait for a MAXIUM amount of waiting time until it finds the class in any tag. Raise an error when it doesn't work
 
-                html = self.driver.page_source
-                lowered = html.lower()
-
-                if (
-                    "access denied" in lowered
-                    or "forbidden" in lowered
-                    or "captcha" in lowered
-                    or len(html.strip()) < 1000
-                ):
-                    raise ValueError("Blocked or invalid page")
-
-                soup = BeautifulSoup(html, "html.parser")
-
-                if expected_check_fn and not expected_check_fn(soup):
-                    raise ValueError("Expected content not found in the side bar. The Document Summary page doesn't exist.")
-
+                source = self.driver.page_source #Get the source of the last loaded page--> get the dish on the table
+                soup = BeautifulSoup(source, "html.parser")
                 return soup
 
             except (WebDriverException, ValueError) as e:
@@ -68,11 +62,12 @@ class DocumentSumScraper:
                         "url": url,
                         "error": str(e)
                     })
-                    return None
-
-                delay = base_delay * (2 ** attempt)
-                time.sleep(delay)
-        
+                    raise ValueError("Try 5 attempt, but the website doesn't return intended content. Try to increase delay time.")
+                else:
+                    print(f'{url}:Try {attempt+1} attempt') #--> can be used to debug
+                    delay = base_delay * (2 ** attempt) # fixed time to wait
+                    time.sleep(delay)  
+          
    
     def side_bar_check(self):
         """
@@ -89,18 +84,16 @@ class DocumentSumScraper:
                     return self.exist
             else:
                 self.exist = False
-                return self.exist
-        
-        soup = self._load_page(
-            self.url,
-            expected_check_fn=lambda s: s.find('nav', {"id": "AffixSidebar"}) is not None
-        )
+                raise ValueError("The Document Summary page doesn't exist.")
 
-        if not soup:
+        
+        txt_soup = self._load_page(self.url, expected_tag = "MenuList")
+
+        if not txt_soup:
             self.exist = False
-            return self.exist
+            raise ValueError("The Document Summary page doesn't exist.")
         else:
-            self.exist = has_sum(soup)
+            self.exist = has_sum(txt_soup)
             return self.exist
 
     def get_soup(self):
@@ -113,7 +106,7 @@ class DocumentSumScraper:
 
         sum_url = f'{self.base_url}/LSU/{self.uri_identifier}'
     
-        self.soup = self._load_page(sum_url)
+        self.soup = self._load_page(sum_url, expected_tag = "NMetadata")
         
         return self.soup
     

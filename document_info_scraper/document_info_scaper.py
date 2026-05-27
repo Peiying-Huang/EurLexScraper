@@ -37,7 +37,7 @@ class DocumentInfoScraper:
     def __enter__(self):
         return self
 
-    def __exit__(self, exc_type, exc, traceback):
+    def __exit__(self):
         self.close()
         
     def _load_page(self, url, max_attempts=5, base_delay=1):
