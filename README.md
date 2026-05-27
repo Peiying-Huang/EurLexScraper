@@ -1,6 +1,8 @@
 # EurLexScraper
-Extract the content from the EUR-Lex websites. Each legal document's website (e.g. https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32023R2631) has a left side bar with a possible combination of  'Text', 'Document Information', 'Procedure', 'Document Summary', and 'National Transposition'.
-<img width="286" height="524" alt="Screenshot 2026-04-29 at 11 14 12" src="https://github.com/user-attachments/assets/7ceb7783-9d3e-4af6-8b7a-0438edd99a98" />
+Extract the content from the EUR-Lex websites. Each legal document's website (e.g. https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32019L0882) has a left side bar with a possible combination of  'Text', 'Document Information', 'Procedure', 'Document Summary', and 'National Transposition'.
+
+
+<img width="339" height="458" alt="Screenshot 2026-05-27 at 17 50 23" src="https://github.com/user-attachments/assets/ad467efa-1d70-423d-a515-4be6f420f564" />
 
 ## `DocumentInfoScraper`
 
@@ -173,29 +175,40 @@ Implementation details can be found in:
 
 ```python
 from graph_builder import Modifiedby
-
-mb = Modifiedby(url)
+url = "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32023R2631"
+mb = Modifiedby(url, delay_time_asynchronous_max=4)
+# delay_time_asynchronous_max is used to set the initial maximum waiting time for opening one/ multiple websites; the default is 0.01
 
 full_urls = mb.collect_all_urls()
 
-graph = mb.generate_full_graph(full_urls)
+graph = mb.generate_full_graph(full_urls, visualize = True, progress = True)
+# visualize is used to display the graph from the networkx library (visualize = True).
+# progress is used to display the progress of building the graph per link (progress = True).
 ```
-
 ---
 
+### Example Output
+
+- The blue nodes represent the document numbers.
+
+<img width="824" height="680" alt="Screenshot 2026-05-27 at 18 00 20" src="https://github.com/user-attachments/assets/75ca58c2-ac3e-481e-9b0f-820485916236" />
+
+---
 ### 1.2 Build the `modifies` Full Graph
 
 #### Initialize the Process
 
 ```python
 from graph_builder import Modifies
-
-ms = Modifies(url)
+ms = Modifies(url, delay_time_asynchronous_max=4)
+# delay_time_asynchronous_max is used to set the initial maximum waiting time for opening one/ multiple websites;the default is 0.01
 
 full_urls = ms.collect_all_urls()
 
-graph = ms.generate_full_graph(full_urls, visualize = True)
+graph = ms.generate_full_graph(full_urls, visualize = True, progress = True)
 # visualize = True means to show the output of the G shown as the example
+# visualize is used to display the graph from the networkx library (visualize = True).
+# progress is used to display the progress of building the graph per link (progress = True).
 ```
 
 ---
@@ -225,8 +238,20 @@ Select the relevant links from the arguments:
 ```python
 create_selected_urls(relations=[], acts=[], comments=[], subdivisions=[], froms=[], tos=[])
 ```
+---
+### Example Output
+
+- The blue nodes represent the document numbers.
+
+<img
+    width="602"
+    height="409"
+    alt="Example Full Graph"
+    src="https://github.com/user-attachments/assets/654cbcce-c8e4-4b4e-b506-01dd7dd145ac"
+/>
 
 ---
+
 
 ### 2.1 Build a Selected `modifiedby` Graph
 
@@ -234,15 +259,27 @@ create_selected_urls(relations=[], acts=[], comments=[], subdivisions=[], froms=
 
 ```python
 from graph_builder import Modifiedby
+mb2 = Modifiedby("https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32019R2019", delay_time_asynchronous_max=5)
+# delay_time_asynchronous_max is used to set the initial maximum waiting time for opening one/ multiple websites;the default is 0.01
 
-mb_selected = Modifiedby(url)
+selected_urls = mb2.collect_selected_urls(relations=['Repeal'])
+# enter relations=[], acts=[], comments=[], subdivisions=[], froms=[], tos=[] to select metadata
 
-selected_urls = mb_selected.create_selected_urls(relations='Corrected by')
-
-graph = mb_selected.generate_full_graph(selected_urls)
+graph2 = mb2.generate_full_graph(selected_urls, visualize = True, progress = False, selected = True, relations=['Repeal'])
+# visualize is used to display the graph from the networkx library (visualize = True).
+# progress is used to display the progress of building the graph per link (progress = True).
+# selected is used to filter the metadata that fulfills requirements (selected = True), else it returns unselected metadata 
+# enter relations=[], acts=[], comments=[], subdivisions=[], froms=[], tos=[] to select metadata
 ```
 
 ---
+### Example Output
+
+- The blue nodes represent the document numbers.
+<img width="1373" height="673" alt="Screenshot 2026-05-27 at 18 22 50" src="https://github.com/user-attachments/assets/dc4cdd50-b05a-4d89-afcb-3ba0012a60ee" />
+
+---
+
 
 ### 2.2 Build a Selected `modifies` Graph
 
@@ -250,10 +287,25 @@ graph = mb_selected.generate_full_graph(selected_urls)
 
 ```python
 from graph_builder import Modifies
-mb_selected = Modifies(url)
-selected_urls = ms_selected.create_selected_urls(relations='Corrected by')
-graph = ms_selected.generate_full_graph(selected_urls)
+ms2 = Modifies("https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32019R2019", delay_time_asynchronous_max=5)
+# delay_time_asynchronous_max is used to set the initial maximum waiting time for opening one/ multiple websites;the default is 0.01
+
+selected_urls2 = ms2.collect_selected_urls(relations=['Repeal'])
+# enter relations=[], acts=[], comments=[], subdivisions=[], froms=[], tos=[] to select metadata
+
+graph2 = ms2.generate_full_graph(selected_urls2, visualize = True, progress = False, selected = True, relations=['Repeal'])
+# visualize is used to display the graph from the networkx library (visualize = True).
+# progress is used to display the progress of building the graph per link (progress = True).
+# selected is used to filter the metadata that fulfills requirements (selected = True), else it returns unselected metadata 
+# enter relations=[], acts=[], comments=[], subdivisions=[], froms=[], tos=[] to select metadata
 ```
+---
+### Example Output
+
+- The blue nodes represent the document numbers.
+<img width="1223" height="652" alt="Screenshot 2026-05-27 at 18 19 36" src="https://github.com/user-attachments/assets/b0c8a6a0-96e0-4624-bd8d-b3c7b9f91353" />
+
+---
 
 # `document_sum_scraper` Folders
 
