@@ -315,10 +315,18 @@ scraper = DocumentSumScraper(url)
 
 data = scraper.build_json_metadata()
 ```
+---
+
+## 2. Extraction Logic
+
+The scraper first checks whether the **National Transposition** section exists in the left sidebar.
+
+- If the section exists, the scraper automatically extracts the metadata.
+- Otherwise, the scraper raises an error.
 
 ---
 
-## 2. Example Website Structure
+## 3. Example Website Structure
 
 ```python
 {
