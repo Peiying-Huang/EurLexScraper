@@ -235,21 +235,30 @@ class Modifiedby(GraphBuilder):
     
         lock = threading.Lock()
 
-        def get_data(link):
+        def get_data(link, progress_data = False):
             with lock:
                 if link not in cache:
                     cache[link] = Modifiedby(link, self.delay_time_asynchronous)
+                    
                 obj = cache[link]
 
                 if selected:
                     selected_attr,_ = obj.subselect_modifiedby(**filter_kwargs)
+
+                    if selected_attr == []: # there is no metadata fulfill the requirements of **filter_kwargs --> No new nodes
+                        selected_G = nx.DiGraph()
+                        if progress_data:
+                            self.logger.info("%s: There is no documents that fulfull your requests.", link)
+                    else:
+                        selected_G = obj.create_graph(selected_attr= selected_attr) 
+                    
                     selected_G = obj.create_graph(selected_attr)
                 else:
                     selected_G = obj.create_graph()
             return  selected_G
 
         with ThreadPoolExecutor(max_workers=10) as executor:
-            page_operations = [executor.submit(get_data, link) for link in all_links]
+            page_operations = [executor.submit(get_data, link, progress_data = progress) for link in all_links]
 
             for page in tqdm(as_completed(page_operations), total=len(page_operations), desc="Building graph"):
                 G_sub = page.result()
@@ -260,7 +269,10 @@ class Modifiedby(GraphBuilder):
 
                 if G_sub is not None and len(G_sub.nodes) > 0:
                     self.G = nx.compose(self.G, G_sub)
-        
+
+        if len(self.G) == 0:
+            self.logger.info("The metadata is empty, because there is no documents that fullfils your requirements.")
+
         if visualize:
             if len(self.G.nodes) > 0:
                 self.visualize_graph()
@@ -441,7 +453,7 @@ class Modifies(GraphBuilder):
     
         lock = threading.Lock()
 
-        def get_data(link):
+        def get_data(link, progress_data= False):
             with lock:
                 if link not in cache:
                     cache[link] = Modifies(link, self.delay_time_asynchronous)
@@ -449,13 +461,19 @@ class Modifies(GraphBuilder):
 
                 if selected:
                     selected_attr,_ = obj.subselect_modifies(**filter_kwargs)
-                    selected_G = obj.create_graph(selected_attr)
+
+                    if selected_attr == []: # there is no metadata fulfill the requirements of **filter_kwargs --> No new nodes
+                        selected_G = nx.DiGraph()
+                        if progress_data:
+                            self.logger.info("%s: There is no documents that fulfull your requests.", link)
+                    else:
+                        selected_G = obj.create_graph(selected_attr= selected_attr) 
                 else:
                     selected_G = obj.create_graph()
             return  selected_G
        
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
-            page_operations = [executor.submit(get_data, link) for link in all_links]
+            page_operations = [executor.submit(get_data, link, progress_data =progress) for link in all_links]
 
             for page in tqdm(as_completed(page_operations), total=len(page_operations), desc="Building graph"):
                 G_sub = page.result()
@@ -466,6 +484,9 @@ class Modifies(GraphBuilder):
 
                 if G_sub is not None and len(G_sub.nodes) > 0:
                     self.G = nx.compose(self.G, G_sub)
+        
+        if len(self.G) == 0:
+            self.logger.info("The metadata is empty, because there is no documents that fullfils your requirements.")
         
         if visualize:
             if len(self.G.nodes) > 0:

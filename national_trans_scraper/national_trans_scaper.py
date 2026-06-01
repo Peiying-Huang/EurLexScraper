@@ -62,7 +62,7 @@ class NationalTransScraper:
                     })
                     raise ValueError("Try 5 attempt, but the website doesn't return intended content. Try to increase delay time.")
                 else:
-                    print(f'{url}:Try {attempt+1} attempt') #--> can be used to debug
+                    #print(f'{url}:Try {attempt+1} attempt') #--> can be used to debug
                     delay = base_delay * (2 ** attempt) # fixed time to wait
                     time.sleep(delay)  
           
