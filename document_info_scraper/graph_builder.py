@@ -26,7 +26,7 @@ class GraphBuilder:
         extract graph data from the "Modified By" table.
         return: 
         node_list:[32023R2631R(01), 2023R2631R(02),...]
-        edge_attri_list:[{'relation':'modifies', 'weight':'1.0'},{'relation':'modifies', 'weight':'1.0'},....]
+        edge_attri_list: [{'relation':'modifies', 'act': , 'comment': , 'subdivision_concerned':, 'from': , 'to':, 'weight':'1.0'}, ....]
         """
         if selected_attr == []:
             attr_list = self.attributes_list
@@ -38,10 +38,15 @@ class GraphBuilder:
             node_label = act['Act']
             node_list.append(node_label)
 
-        edge_attri_list = [] #[{'relation':'modifies', 'weight':'1.0'},{'relation':'modifies', 'weight':'1.0'},....]
-        for relation in attr_list:
+        edge_attri_list = [] #[{'relation':'modifies', 'act': , 'comment': , 'subdivision_concerned':, 'from': , 'to':, 'weight':'1.0'}, ....]
+        for row_data in attr_list:
             relation_dict = {}
-            relation_dict['relation'] = relation['Relation']
+            relation_dict['relation'] = row_data['Relation']
+            relation_dict['act'] = row_data['Act']
+            relation_dict['comment'] = row_data['Comment']
+            relation_dict['subdivision_concerned'] = row_data['Subdivision concerned']
+            relation_dict['from'] = row_data['From']
+            relation_dict['to'] = row_data['To']
             relation_dict['weight'] = 1.0
             edge_attri_list.append(relation_dict)
             
