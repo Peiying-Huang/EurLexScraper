@@ -127,17 +127,6 @@ class NationalTransScraper:
             country_value['number_of_measures'] = country.find('p', class_="ViewMoreInfo ntmMore collapsed countryToggle noNimsBtn").get_text().split('\n')[1]
             country_values.append(country_value)
         return country_names, country_values
-
-    def collect_text_url(self, measure):
-        """
-        collect the English HTML document URL.
-        return:
-            str: the full URL
-        """
-        en_text_a = measure.find('a', {'id': 'titleLink'}, href=True)
-        href = en_text_a.get('href').split('./../../..')[1]
-        link = f'https://eur-lex.europa.eu{href}'
-        return link
     
     def extract_measures_values(self):
         """
